@@ -1,26 +1,75 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * MO Content Space design tokens — PRD §15.2 (WORKING PALETTE, pending sign-off).
+ * Components use these semantic tokens only; never hardcode hex values in screens (UI-03).
+ */
+@theme {
+  --color-canvas: #f8f7f3; /* color.background.canvas — warm ivory */
+  --color-surface: #ffffff; /* color.background.surface — white */
+  --color-primary: #176b66; /* color.action.primary — deep teal */
+  --color-primary-hover: #12564f;
+  --color-coral: #f3b9a6; /* color.accent.coral — sparing highlights */
+  --color-coral-ink: #9a3f22; /* derived: legible text on coral tint */
+  --color-sage: #dce9df; /* color.accent.sage — low-emphasis selection */
+  --color-ink: #242a32; /* color.text.primary — charcoal */
+  --color-muted: #676575; /* color.text.secondary — soft gray */
+  --color-line: #ebe9e3; /* derived: restrained borders */
+  --color-danger: #b42318; /* derived semantic: error */
+  --color-danger-tint: #fdecea;
+  --color-warning: #8a5a00; /* derived semantic: warning */
+  --color-warning-tint: #fdf3dc;
+
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 1.5rem; /* 24px — card family (12–20px+ per PRD, designs use 24px) */
+  --radius-tile: 1rem;
+  --radius-control: 0.75rem;
+
+  --shadow-card: 0 1px 2px rgb(36 42 50 / 0.04), 0 1px 3px rgb(36 42 50 / 0.04);
+  --shadow-raised: 0 8px 24px -8px rgb(36 42 50 / 0.12);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-sage);
+  border-radius: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
