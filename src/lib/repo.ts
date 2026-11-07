@@ -189,7 +189,7 @@ export async function createIdea(input: {
   return idea;
 }
 
-export async function updateIdea(id: string, changes: Partial<Pick<Idea, "title" | "body" | "category_id">>) {
+export async function updateIdea(id: string, changes: Partial<Pick<Idea, "title" | "body" | "category_id" | "cover_attachment_id">>) {
   const c = { ...changes };
   if ("title" in c) c.title = c.title?.trim() || null;
   if ("body" in c) c.body = c.body?.trim() ? c.body : null;
@@ -215,7 +215,7 @@ export async function deleteIdea(id: string) {
       await patch<PlatformPlan>("platform_plans", p.id, { deleted_at: ts });
     }
     for (const tk of await db.tasks.where("idea_id").equals(id).toArray()) {
-      await patch<Task>("tasks", tk.id, { idea_id: null });
+      await patch<Task>("tasks", tk.id, { idea_id: null, platform_plan_id: null });
     }
   });
 }
@@ -322,13 +322,20 @@ export async function addPlatformPlan(idea_id: string, platform: Platform) {
 
 export async function updatePlatformPlan(
   id: string,
-  changes: Partial<Pick<PlatformPlan, "notes" | "target_at" | "publish_state" | "other_label">> & { publish_state?: PublishState },
+  changes: Partial<Pick<PlatformPlan, "notes" | "caption" | "target_at" | "publish_state" | "other_label">> & { publish_state?: PublishState },
 ) {
   return patch<PlatformPlan>("platform_plans", id, changes);
 }
 
 export async function removePlatformPlan(id: string) {
-  return patch<PlatformPlan>("platform_plans", id, { deleted_at: nowIso() });
+  const db = getDb();
+  await db.transaction("rw", [db.platform_plans, db.tasks, db.outbox], async () => {
+    await patch<PlatformPlan>("platform_plans", id, { deleted_at: nowIso() });
+    // Platform tasks stay as ordinary idea tasks.
+    for (const tk of await db.tasks.where("platform_plan_id").equals(id).toArray()) {
+      await patch<Task>("tasks", tk.id, { platform_plan_id: null });
+    }
+  });
 }
 
 // ---------- tasks & reminders ----------
@@ -356,6 +363,8 @@ export function computeRemindAt(task: Pick<Task, "due_date" | "due_time">, spec:
 
 export interface TaskInput {
   title: string;
+  notes?: string | null;
+  platform_plan_id?: string | null;
   idea_id?: string | null;
   due_date?: string | null;
   due_time?: string | null;
@@ -368,7 +377,14 @@ function cleanTask(input: TaskInput) {
   if (!title) throw new ValidationError("task.error.title");
   const due_date = input.due_date || null;
   const due_time = due_date ? input.due_time || null : null;
-  return { title: title.slice(0, LIMITS.taskTitle), idea_id: input.idea_id ?? null, due_date, due_time };
+  return {
+    title: title.slice(0, LIMITS.taskTitle),
+    notes: input.notes?.trim() || null,
+    idea_id: input.idea_id ?? null,
+    platform_plan_id: input.idea_id ? (input.platform_plan_id ?? null) : null,
+    due_date,
+    due_time,
+  };
 }
 
 export async function createTask(input: TaskInput): Promise<Task> {

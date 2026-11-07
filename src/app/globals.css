@@ -13,19 +13,20 @@
   --color-coral-ink: #9a3f22; /* derived: legible text on coral tint */
   --color-sage: #dce9df; /* color.accent.sage — low-emphasis selection */
   --color-ink: #242a32; /* color.text.primary — charcoal */
-  --color-muted: #676575; /* color.text.secondary — soft gray */
+  --color-muted: #596279; /* color.text.secondary — UX Pilot designs (PRD proposed #676575) */
   --color-line: #ebe9e3; /* derived: restrained borders */
-  --color-danger: #b42318; /* derived semantic: error */
+  --color-danger: #c53030; /* error — designs use #E53E3E; darkened for text contrast */
   --color-danger-tint: #fdecea;
   --color-warning: #8a5a00; /* derived semantic: warning */
   --color-warning-tint: #fdf3dc;
 
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Plus Jakarta Sans Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Inter Variable", ui-sans-serif, system-ui, sans-serif; /* designs use Inter throughout */
 
   --radius-card: 1.5rem; /* 24px — card family (12–20px+ per PRD, designs use 24px) */
   --radius-tile: 1rem;
   --radius-control: 0.75rem;
+  --radius-5xl: 2.5rem;
 
   --shadow-card: 0 1px 2px rgb(36 42 50 / 0.04), 0 1px 3px rgb(36 42 50 / 0.04);
   --shadow-raised: 0 8px 24px -8px rgb(36 42 50 / 0.12);
@@ -72,4 +73,25 @@ h3 {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* Eyebrow label used across the designs: tiny, heavy, widely tracked */
+.eyebrow {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
 }

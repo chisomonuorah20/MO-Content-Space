@@ -8,7 +8,7 @@ import { greetingKey, todayYmd } from "@/lib/dates";
 import { ideaLabel, useAttachments, useCategories, useIdeas, useNow, useProfile, useReminders, useTasks, useTranscripts } from "@/lib/hooks";
 import { effectiveRemindAt } from "@/lib/repo";
 import { useApp } from "@/components/app-provider";
-import { CAPTURE_MODES } from "@/components/quick-capture";
+import { CAPTURE_ITEMS } from "@/components/capture-menu";
 import { IdeaCard, ReminderItem, TaskRow } from "@/components/cards";
 import { Avatar, NotificationsButton, SearchButton, SyncStatus } from "@/components/shell";
 import { cx, EmptyState } from "@/components/ui";
@@ -86,7 +86,7 @@ export default function HomePage() {
                 </div>
               </div>
               <div className="grid grid-cols-4 gap-2.5 sm:gap-4">
-                {CAPTURE_MODES.map(({ mode, key, Icon }) => (
+                {CAPTURE_ITEMS.map(({ mode, short: key, Icon }) => (
                   <button
                     key={mode}
                     onClick={() => openCapture(mode)}

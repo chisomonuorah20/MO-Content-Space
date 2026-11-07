@@ -43,6 +43,9 @@ export class MoDB extends Dexie {
       outbox: "op_id, entity_id, state, created_at",
       meta: "key",
     });
+    this.version(2).stores({
+      tasks: "id, idea_id, platform_plan_id, due_date, is_completed, deleted_at",
+    });
   }
 }
 

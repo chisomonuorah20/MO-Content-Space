@@ -1,31 +1,35 @@
 "use client";
 
 import clsx from "clsx";
-import { X } from "lucide-react";
+import { Cloud, X } from "lucide-react";
 import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { t } from "@/lib/copy";
 import type { IdeaStatus } from "@/lib/types";
 
 export { clsx as cx };
 
-type BtnVariant = "primary" | "secondary" | "ghost" | "danger";
+type BtnVariant = "primary" | "secondary" | "ghost" | "danger" | "quiet";
 export function Button({
   variant = "primary",
+  size = "md",
   loading,
   className,
   children,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant; loading?: boolean }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant; loading?: boolean; size?: "md" | "lg" }) {
   return (
     <button
       {...rest}
       disabled={rest.disabled || loading}
       aria-busy={loading || undefined}
       className={clsx(
-        "inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-        variant === "primary" && "bg-primary text-white hover:bg-primary-hover active:bg-primary-hover",
-        variant === "secondary" && "border border-line bg-surface text-ink hover:border-primary/40 hover:bg-canvas",
+        "inline-flex items-center justify-center gap-2 font-black tracking-widest uppercase transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+        size === "md" && "min-h-11 rounded-2xl px-6 text-[11px]",
+        size === "lg" && "min-h-14 rounded-3xl px-8 py-4 text-sm",
+        variant === "primary" && "bg-primary text-white shadow-lg shadow-primary/15 hover:bg-primary-hover",
+        variant === "secondary" && "border border-line bg-surface text-ink shadow-sm hover:border-primary/30",
         variant === "ghost" && "text-primary hover:bg-sage/50",
+        variant === "quiet" && "text-muted hover:text-ink",
         variant === "danger" && "bg-danger text-white hover:opacity-90",
         className,
       )}
@@ -129,7 +133,7 @@ export function Field({ label, children, error, hint }: { label: string; childre
   const id = useId();
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-sm font-semibold text-ink">
+      <label htmlFor={id} className="eyebrow ml-1 block">
         {label}
       </label>
       {children(id)}
@@ -144,7 +148,7 @@ export function Field({ label, children, error, hint }: { label: string; childre
 }
 
 export const inputClass =
-  "w-full rounded-control border border-line bg-surface px-3.5 py-2.5 text-base text-ink placeholder:text-muted/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
+  "w-full rounded-2xl border border-line bg-surface px-5 py-3.5 text-sm font-medium text-ink shadow-sm placeholder:text-muted/60 focus:border-primary/40 focus:outline-none focus:ring-4 focus:ring-primary/10 disabled:opacity-50";
 
 /**
  * Responsive dialog: bottom sheet on mobile, centered modal on desktop.
@@ -158,7 +162,9 @@ export function Sheet({
   children,
   footer,
   size = "md",
+  icon,
 }: {
+  icon?: ReactNode;
   open: boolean;
   onClose: () => void;
   title: string;
@@ -192,19 +198,23 @@ export function Sheet({
       )}
     >
       {open && (
-        <div className="flex max-h-[92dvh] flex-col rounded-t-3xl bg-surface shadow-raised md:max-h-[85dvh] md:rounded-card">
-          <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-3">
-            <div>
-              <h2 id={titleId} className="text-xl font-bold">
+        <div className="flex max-h-[92dvh] flex-col rounded-t-5xl bg-surface shadow-raised md:max-h-[85dvh] md:rounded-4xl">
+          <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-line md:hidden" aria-hidden />
+          <div className="flex items-start justify-between gap-4 border-b border-line/70 px-6 pt-4 pb-4 md:pt-6">
+            <div className="flex items-center gap-3">
+              {icon && <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-white shadow-md shadow-primary/20">{icon}</span>}
+              <div>
+              <h2 id={titleId} className="text-lg font-black tracking-tight uppercase">
                 {title}
               </h2>
               {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+              </div>
             </div>
-            <IconButton label={t("action.close")} onClick={onClose} className="-mr-2 -mt-1">
+            <IconButton label={t("action.close")} onClick={onClose} className="-mr-1 bg-canvas">
               <X className="size-5" />
             </IconButton>
           </div>
-          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 pb-4">{children}</div>
+          <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-4">{children}</div>
           {footer && <div className="border-t border-line px-6 pt-3 pb-safe md:pb-4">{footer}</div>}
         </div>
       )}
@@ -217,6 +227,7 @@ export function ConfirmDialog({
   title,
   body,
   confirmLabel,
+  cancelLabel,
   onConfirm,
   onClose,
 }: {
@@ -224,6 +235,7 @@ export function ConfirmDialog({
   title: string;
   body: string;
   confirmLabel: string;
+  cancelLabel?: string;
   onConfirm: () => void;
   onClose: () => void;
 }) {
@@ -236,7 +248,7 @@ export function ConfirmDialog({
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose}>
-            {t("action.cancel")}
+            {cancelLabel ?? t("action.cancel")}
           </Button>
           <Button variant="danger" onClick={onConfirm}>
             {confirmLabel}
@@ -261,7 +273,7 @@ export function Segmented<T extends string>({
   label: string;
 }) {
   return (
-    <div role="tablist" aria-label={label} className="scroll-thin flex gap-2 overflow-x-auto pb-1">
+    <div role="tablist" aria-label={label} className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
       {options.map((o) => (
         <button
           key={o.value}
@@ -269,8 +281,8 @@ export function Segmented<T extends string>({
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
           className={clsx(
-            "min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold transition-colors",
-            value === o.value ? "bg-primary text-white" : "border border-line bg-surface text-muted hover:text-ink",
+            "min-h-10 shrink-0 rounded-xl px-5 text-[10px] font-black tracking-widest uppercase transition-colors",
+            value === o.value ? "bg-primary text-white shadow-md shadow-primary/10" : "border border-line bg-canvas text-muted hover:text-ink",
           )}
         >
           {o.label}
@@ -289,5 +301,74 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
       </div>
       {actions && <div className="flex items-center gap-3">{actions}</div>}
     </header>
+  );
+}
+
+/** Brand mark — teal tile + wordmark (designs). Name per PRD D-07. */
+export function Logo({ size = "md", stacked, light }: { size?: "sm" | "md" | "lg"; stacked?: boolean; light?: boolean }) {
+  return (
+    <span className={clsx("inline-flex items-center gap-3", stacked && "flex-col gap-4")}>
+      <span
+        className={clsx(
+          "flex items-center justify-center bg-primary text-white shadow-lg shadow-primary/20",
+          size === "sm" && "size-9 rounded-xl",
+          size === "md" && "size-10 rounded-xl",
+          size === "lg" && "size-12 rounded-2xl",
+        )}
+      >
+        <Cloud className={size === "lg" ? "size-5" : "size-4"} fill="currentColor" aria-hidden />
+      </span>
+      <span className={clsx("font-black tracking-tighter uppercase", size === "lg" ? "text-lg" : "text-sm", light ? "text-white" : "text-ink")}>
+        {t("brand.full")}
+      </span>
+    </span>
+  );
+}
+
+/** Soft blurred colour washes in the page corners (designs). Decorative only. */
+export function Blobs() {
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+      <div className="absolute -top-40 -right-40 size-96 rounded-full bg-sage/25 blur-[100px]" />
+      <div className="absolute -bottom-40 -left-40 size-96 rounded-full bg-coral/15 blur-[100px]" />
+    </div>
+  );
+}
+
+export function Eyebrow({ children, className, as: Tag = "p" }: { children: ReactNode; className?: string; as?: "p" | "h2" | "h3" | "span" }) {
+  return <Tag className={clsx("eyebrow", className)}>{children}</Tag>;
+}
+
+export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      title={label}
+      onClick={() => onChange(!checked)}
+      className={clsx("relative h-6 w-11 shrink-0 rounded-full transition-colors", checked ? "bg-primary" : "bg-line")}
+    >
+      <span className={clsx("absolute top-1 size-4 rounded-full bg-white shadow transition-all", checked ? "left-6" : "left-1")} />
+    </button>
+  );
+}
+
+/** Uppercase chip used for playgrounds / categories / platform association. */
+export function Chip({ selected, onClick, children, className }: { selected?: boolean; onClick?: () => void; children: ReactNode; className?: string }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={clsx(
+        "inline-flex min-h-11 items-center gap-2 rounded-2xl px-5 text-[11px] font-black tracking-widest uppercase transition-all",
+        selected ? "bg-primary text-white shadow-md shadow-primary/15" : "border border-line bg-surface text-ink hover:border-primary/30",
+        className,
+      )}
+    >
+      {children}
+    </button>
   );
 }

@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, CalendarDays, CloudOff, CloudUpload, House, Lightbulb, ListChecks, Plus, RefreshCw, Search, Settings, CircleCheck, TriangleAlert, HardDrive, Download } from "lucide-react";
+import { Bell, CalendarDays, CloudOff, CloudUpload, House, Lightbulb, ListChecks, Plus, RefreshCw, Search, Settings, CircleCheck, TriangleAlert, HardDrive } from "lucide-react";
 import type { ReactNode } from "react";
 import { t, type CopyKey } from "@/lib/copy";
 import { useOnline, usePendingCount, useProfile, useReminders, useSyncState } from "@/lib/hooks";
 import { runSync } from "@/lib/sync";
 import { useApp } from "./app-provider";
-import { cx, IconButton } from "./ui";
+import { Blobs, cx, IconButton, Logo } from "./ui";
 
 const NAV: { href: string; key: CopyKey; Icon: typeof House }[] = [
   { href: "/", key: "nav.home", Icon: House },
@@ -21,70 +21,59 @@ function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
+/** Full-screen flows on mobile (designs show no bottom nav there). */
+const FOCUS_ROUTES = [/^\/capture\//, /^\/ideas\/[^/]+\/edit$/, /^\/ideas\/[^/]+\/voice\//];
+export const isFocusRoute = (p: string) => FOCUS_ROUTES.some((r) => r.test(p));
+/** Pages that draw their own edge-to-edge desktop layout (side panels). */
+const BLEED_ROUTES = [/^\/ideas\/[^/]+$/, /^\/ideas\/[^/]+\/plans\/[^/]+$/, /^\/tasks$/];
+const isBleedRoute = (p: string) => BLEED_ROUTES.some((r) => r.test(p));
+
 export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const focus = isFocusRoute(pathname);
+  const bleed = isBleedRoute(pathname);
   return (
     <div className="flex min-h-dvh">
+      <Blobs />
       <Sidebar />
-      <main className="min-w-0 flex-1 px-5 pt-6 pb-32 sm:px-8 lg:px-12 lg:pt-12 lg:pb-16">
-        <div className="mx-auto w-full max-w-[1200px]">{children}</div>
+      <main className={cx("min-w-0 flex-1", !focus && (bleed ? "px-5 pt-6 pb-32 sm:px-8 lg:p-0" : "px-5 pt-6 pb-32 sm:px-8 lg:px-12 lg:pt-12 lg:pb-16"))}>
+        {focus || bleed ? children : <div className="mx-auto w-full max-w-[1200px]">{children}</div>}
       </main>
-      <BottomNav />
+      {!focus && <BottomNav />}
     </div>
   );
 }
 
 function Sidebar() {
   const pathname = usePathname();
-  const { openCapture } = useApp();
+  const link = (href: string, key: CopyKey, Icon: typeof House) => {
+    const active = isActive(pathname, href);
+    return (
+      <Link
+        key={href}
+        href={href}
+        aria-current={active ? "page" : undefined}
+        className={cx(
+          "flex min-h-11 items-center gap-3 rounded-xl px-4 text-sm transition-colors",
+          active ? "bg-canvas font-bold text-primary" : "font-medium text-muted hover:bg-canvas hover:text-ink",
+        )}
+      >
+        <Icon className="size-4" strokeWidth={active ? 2.5 : 2} aria-hidden />
+        <span>{t(key)}</span>
+      </Link>
+    );
+  };
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-line bg-surface lg:flex">
-      <div className="p-8 pb-6">
-        <Link href="/" className="mb-10 flex items-center gap-3">
-          <span className="flex size-9 items-center justify-center rounded-control bg-primary text-white shadow-card">
-            <Lightbulb className="size-4" aria-hidden />
-          </span>
-          <span className="font-display text-lg font-bold leading-tight tracking-tight">{t("brand.full")}</span>
+      <div className="p-6 pt-8">
+        <Link href="/" className="mb-10 flex px-2">
+          <Logo size="sm" />
         </Link>
-        <button
-          onClick={() => openCapture()}
-          className="mb-8 flex min-h-11 w-full items-center justify-center gap-2 rounded-control bg-primary px-4 font-semibold text-white transition-colors hover:bg-primary-hover"
-        >
-          <Plus className="size-4" aria-hidden /> {t("nav.new_idea")}
-        </button>
-        <nav aria-label="Main" className="space-y-1.5">
-          {NAV.map(({ href, key, Icon }) => {
-            const active = isActive(pathname, href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                className={cx(
-                  "flex min-h-11 items-center gap-3 rounded-control px-4 transition-colors",
-                  active ? "bg-sage/60 font-bold text-primary" : "text-muted hover:bg-canvas hover:text-ink",
-                )}
-              >
-                <Icon className="size-5" aria-hidden />
-                <span>{t(key)}</span>
-              </Link>
-            );
-          })}
+        <nav aria-label="Main" className="space-y-1">
+          {NAV.map(({ href, key, Icon }) => link(href, key, Icon))}
         </nav>
       </div>
-      <div className="mt-auto space-y-1.5 border-t border-line p-8 pt-6">
-        <Link
-          href="/import"
-          className={cx("flex min-h-11 items-center gap-3 rounded-control px-4", isActive(pathname, "/import") ? "bg-sage/60 font-bold text-primary" : "text-muted hover:bg-canvas hover:text-ink")}
-        >
-          <Download className="size-5" aria-hidden /> <span>{t("nav.import")}</span>
-        </Link>
-        <Link
-          href="/settings"
-          className={cx("flex min-h-11 items-center gap-3 rounded-control px-4", isActive(pathname, "/settings") ? "bg-sage/60 font-bold text-primary" : "text-muted hover:bg-canvas hover:text-ink")}
-        >
-          <Settings className="size-5" aria-hidden /> <span>{t("nav.settings")}</span>
-        </Link>
-      </div>
+      <div className="mt-auto border-t border-line p-6">{link("/settings", "nav.settings", Settings)}</div>
     </aside>
   );
 }
@@ -101,8 +90,8 @@ function BottomNav() {
         aria-current={active ? "page" : undefined}
         className={cx("flex min-h-11 min-w-14 flex-col items-center justify-center gap-1", active ? "text-primary" : "text-muted")}
       >
-        <Icon className="size-6" strokeWidth={active ? 2.4 : 2} aria-hidden />
-        <span className={cx("text-[11px]", active ? "font-bold" : "font-medium")}>{t(key)}</span>
+        <Icon className="size-6" strokeWidth={active ? 2.5 : 2} aria-hidden />
+        <span className="text-[10px] font-black tracking-widest uppercase">{t(key)}</span>
       </Link>
     );
   };

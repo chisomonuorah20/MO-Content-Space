@@ -5,7 +5,7 @@
  * and every demo record is flagged and badged "Demo" in the UI.
  */
 import { ymd } from "./dates";
-import { addPlatformPlan, createCategory, createIdea, createTask, saveTranscript, uid } from "./repo";
+import { addPlatformPlan, createCategory, createIdea, createTask, saveTranscript, uid, updatePlatformPlan } from "./repo";
 import { getDb } from "./db";
 
 async function svgBlob(bg: string, fg: string): Promise<Blob> {
@@ -37,8 +37,15 @@ export async function loadDemoData() {
     attachments: [{ kind: "image", blob: await svgBlob("#DCE9DF", "#176B66"), file_name: "workspace.png" }],
     demo: true,
   });
+  const tiktok = await addPlatformPlan(workspace.id, "tiktok");
+  await updatePlatformPlan(tiktok.id, {
+    publish_state: "in_progress",
+    caption: "Bringing nature into the workspace. #minimalism #office #creative",
+    notes: "Capture the transition from the camera lens to the room. Natural lighting is key.",
+    target_at: new Date(now.getTime() + 9 * 86400_000).toISOString(),
+  });
   await addPlatformPlan(workspace.id, "instagram");
-  await addPlatformPlan(workspace.id, "youtube");
+  await createTask({ title: "Record transition shots", idea_id: workspace.id, platform_plan_id: tiktok.id, demo: true });
 
   const podcast = await createIdea({
     clientId: uid(),
@@ -75,6 +82,7 @@ export async function loadDemoData() {
     reminder: { mode: "before", offset_minutes: 60 },
     demo: true,
   });
-  await createTask({ title: "Export finished photos", due_date: today, demo: true });
+  await createTask({ title: "Export finished photos", due_date: ymd(new Date(now.getTime() - 86400_000)), demo: true });
+  await createTask({ title: "Research new camera lens", notes: "Compare two prime lenses for low light.", demo: true });
   await createTask({ title: "Backup SD Card", due_date: tomorrow, due_time: "17:00", reminder: { mode: "at_due" }, demo: true });
 }

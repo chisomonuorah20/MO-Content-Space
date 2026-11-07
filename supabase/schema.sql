@@ -28,6 +28,7 @@ create table if not exists public.ideas (
   title text, body text,
   status text not null default 'new' check (status in ('new','in_progress','completed')),
   category_id uuid references public.categories(id) on delete set null,
+  cover_attachment_id uuid,
   created_at timestamptz not null, updated_at timestamptz not null, deleted_at timestamptz,
   version integer not null default 0, synced_at timestamptz not null default now()
 );
@@ -58,8 +59,8 @@ create table if not exists public.platform_plans (
   user_id uuid not null references auth.users(id) on delete cascade,
   idea_id uuid not null references public.ideas(id) on delete cascade,
   platform text not null check (platform in ('tiktok','instagram','linkedin','x','youtube','facebook','other')),
-  other_label text, notes text, target_at timestamptz,
-  publish_state text not null default 'draft' check (publish_state in ('draft','ready','published')),
+  other_label text, notes text, caption text, target_at timestamptz,
+  publish_state text not null default 'draft' check (publish_state in ('draft','in_progress','ready','published')),
   created_at timestamptz not null, updated_at timestamptz not null, deleted_at timestamptz,
   version integer not null default 0, synced_at timestamptz not null default now()
 );
@@ -69,7 +70,9 @@ create table if not exists public.tasks (
   id uuid primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
   idea_id uuid references public.ideas(id) on delete set null,
+  platform_plan_id uuid references public.platform_plans(id) on delete set null,
   title text not null check (char_length(btrim(title)) between 1 and 200),
+  notes text,
   is_completed boolean not null default false, completed_at timestamptz,
   due_date date, due_time time, timezone text,
   created_at timestamptz not null, updated_at timestamptz not null, deleted_at timestamptz,

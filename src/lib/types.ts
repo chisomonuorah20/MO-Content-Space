@@ -3,7 +3,7 @@
 export type IdeaStatus = "new" | "in_progress" | "completed";
 export type UploadState = "local" | "pending" | "uploaded" | "error";
 export type Platform = "tiktok" | "instagram" | "linkedin" | "x" | "youtube" | "facebook" | "other";
-export type PublishState = "draft" | "ready" | "published";
+export type PublishState = "draft" | "in_progress" | "ready" | "published";
 export type ReminderMode = "at_due" | "before" | "custom";
 
 interface Owned {
@@ -21,6 +21,7 @@ export interface Idea extends Owned {
   body: string | null;
   status: IdeaStatus;
   category_id: string | null;
+  cover_attachment_id?: string | null; // "Change Header" (Idea_Detail design)
 }
 
 export interface Category extends Owned {
@@ -59,13 +60,16 @@ export interface PlatformPlan extends Owned {
   platform: Platform;
   other_label: string | null;
   notes: string | null;
+  caption?: string | null; // Caption Draft (Idea_Platform_Plans design)
   target_at: string | null;
   publish_state: PublishState;
 }
 
 export interface Task extends Owned {
   idea_id: string | null;
+  platform_plan_id?: string | null; // Platform Tasks / Platform association (designs)
   title: string;
+  notes?: string | null;
   is_completed: boolean;
   completed_at: string | null;
   due_date: string | null; // YYYY-MM-DD local wall date
@@ -107,6 +111,8 @@ export interface Profile {
   first_name: string;
   email: string | null;
   mode: "local" | "cloud";
+  onboarded?: boolean;
+  preferred_platforms?: Platform[]; // "Choose your playgrounds" (Onboarding)
 }
 
 export interface SyncMeta {

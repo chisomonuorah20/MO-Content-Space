@@ -1,101 +1,95 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { HardDrive, Lightbulb, Mail } from "lucide-react";
-import { t } from "@/lib/copy";
-import { cloudEnabled, supabase } from "@/lib/supabase";
-import { getProfile, setProfile, uid, wipeLocal } from "@/lib/repo";
+import Link from "next/link";
+import { useState } from "react";
+import { ArrowRight, Lock } from "lucide-react";
+import { t, type CopyKey } from "@/lib/copy";
+import { AuthError, signIn } from "@/lib/auth";
+import { cloudEnabled } from "@/lib/supabase";
 import { useOnline } from "@/lib/hooks";
-import { Button, Field, inputClass } from "@/components/ui";
+import { AuthHeading, AuthShell, authInput } from "@/components/auth-shell";
 
 export default function SignInPage() {
   const online = useOnline();
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cloud mode: when the magic link returns with a session, create the device profile.
-  useEffect(() => {
-    const sb = supabase();
-    if (!sb) return;
-    const handle = async (session: Awaited<ReturnType<typeof sb.auth.getSession>>["data"]["session"]) => {
-      if (!session) return;
-      const existing = await getProfile();
-      // Never mix accounts on one device.
-      if (existing && existing.user_id !== session.user.id) await wipeLocal();
-      const first = (session.user.user_metadata?.first_name as string | undefined) ?? localStorage.getItem("mo.pending_name") ?? session.user.email?.split("@")[0] ?? "";
-      await setProfile({ user_id: session.user.id, first_name: first, email: session.user.email ?? null, mode: "cloud" });
-    };
-    void sb.auth.getSession().then(({ data }) => handle(data.session));
-    const { data } = sb.auth.onAuthStateChange((_e, session) => void handle(session));
-    return () => data.subscription.unsubscribe();
-  }, []);
-
-  async function sendLink(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!online) return setError(t("auth.offline"));
+    if (cloudEnabled && !online) return setError(t("auth.offline"));
     setBusy(true);
     try {
-      localStorage.setItem("mo.pending_name", name.trim());
-      const { error } = await supabase()!.auth.signInWithOtp({
-        email: email.trim(),
-        options: { emailRedirectTo: `${window.location.origin}/sign-in`, data: { first_name: name.trim() } },
-      });
-      if (error) throw error;
-      setSent(true);
+      await signIn(email, password, name);
+      // AppProvider routes on to onboarding/home once the profile exists.
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("error.generic"));
-    } finally {
+      setError(err instanceof AuthError && err.message.includes(".") ? t(err.message as CopyKey) : t("auth.signin.error"));
       setBusy(false);
     }
   }
 
-  async function continueLocal(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setBusy(true);
-    await setProfile({ user_id: uid(), first_name: name.trim(), email: null, mode: "local" });
-  }
-
   return (
-    <main className="flex min-h-dvh items-center justify-center px-5 py-10">
-      <div className="w-full max-w-md rounded-card border border-line bg-surface p-8 shadow-card">
-        <div className="mb-6 flex size-12 items-center justify-center rounded-tile bg-primary text-white">
-          <Lightbulb className="size-6" aria-hidden />
+    <AuthShell panel={{ title: t("auth.signin.panel.title"), quote: t("auth.signin.panel.quote") }}>
+      <AuthHeading title={t("auth.signin.title")} subtitle={t("auth.signin.subtitle")} />
+      <form onSubmit={submit} className="space-y-6" noValidate>
+        {!cloudEnabled && (
+          <>
+            <p className="rounded-2xl bg-sage/50 px-4 py-3 text-xs leading-relaxed font-medium text-primary">{t("auth.local.notice2")}</p>
+            <div className="space-y-2">
+              <label htmlFor="name" className="eyebrow ml-1 block">
+                {t("auth.name")}
+              </label>
+              <input id="name" required autoComplete="name" className={authInput} value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+          </>
+        )}
+        <div className="space-y-2">
+          <label htmlFor="email" className="eyebrow ml-1 block">
+            {t("auth.email")}
+          </label>
+          <input id="email" type="email" required={cloudEnabled} autoComplete="email" placeholder={t("auth.email.placeholder")} className={authInput} value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("auth.title")}</h1>
-        <p className="mt-2 text-muted">{t("auth.subtitle")}</p>
+        {cloudEnabled && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <label htmlFor="password" className="eyebrow">
+                {t("auth.password")}
+              </label>
+              <Link href="/forgot-password" className="text-[10px] font-black tracking-widest text-primary uppercase hover:underline">
+                {t("auth.forgot")}
+              </Link>
+            </div>
+            <input id="password" type="password" required autoComplete="current-password" placeholder="••••••••" className={authInput} value={password} onChange={(e) => setPassword(e.target.value)} />
+          </div>
+        )}
+        {error && (
+          <p role="alert" className="rounded-2xl bg-danger-tint px-4 py-3 text-sm font-medium text-danger">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={busy || (cloudEnabled ? !email || !password : !name.trim())}
+          className="group flex min-h-14 w-full items-center justify-center gap-3 rounded-3xl bg-primary py-5 text-sm font-black tracking-widest text-white uppercase shadow-lg shadow-primary/15 transition-all hover:bg-primary-hover active:scale-[0.98] disabled:opacity-50"
+        >
+          {busy ? <span className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <span>{t("auth.signin.title")}</span>}
+          {!busy && <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" aria-hidden />}
+        </button>
+      </form>
 
-        <form onSubmit={cloudEnabled ? sendLink : continueLocal} className="mt-8 space-y-5">
-          <Field label={t("auth.local.label")}>
-            {(id) => <input id={id} required autoComplete="given-name" className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />}
-          </Field>
-          {cloudEnabled && (
-            <Field label={t("auth.email.label")}>
-              {(id) => <input id={id} type="email" required autoComplete="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} />}
-            </Field>
-          )}
-          {error && (
-            <p role="alert" className="rounded-control bg-danger-tint px-3 py-2 text-sm text-danger">
-              {error}
-            </p>
-          )}
-          {sent ? (
-            <p role="status" className="rounded-control bg-sage px-3 py-2 text-sm font-medium text-primary">
-              {t("auth.email.sent")}
-            </p>
-          ) : (
-            <Button type="submit" className="w-full" loading={busy}>
-              {cloudEnabled ? <Mail className="size-4" aria-hidden /> : <HardDrive className="size-4" aria-hidden />}
-              {cloudEnabled ? t("auth.email.send") : t("auth.local.continue")}
-            </Button>
-          )}
-          {!cloudEnabled && <p className="text-sm text-muted">{t("auth.local.notice")}</p>}
-        </form>
-      </div>
-    </main>
+      <p className="mt-12 text-center text-[11px] leading-loose font-bold tracking-widest text-muted uppercase lg:mt-10 lg:text-sm lg:normal-case lg:tracking-normal lg:font-medium">
+        {t("auth.signin.new")}
+        <br className="lg:hidden" />{" "}
+        <Link href="/register" className="font-black text-primary uppercase hover:underline lg:text-[11px] lg:tracking-widest">
+          {t("welcome.create")}
+        </Link>
+      </p>
+      <p className="mt-8 flex items-center justify-center gap-2 text-[9px] font-bold tracking-[0.2em] text-muted/50 uppercase">
+        <Lock className="size-3" aria-hidden /> {t("auth.signin.secure")}
+      </p>
+    </AuthShell>
   );
 }

@@ -7,13 +7,22 @@ import { onReminderFired, startReminderLoop } from "@/lib/reminders";
 import { useProfile } from "@/lib/hooks";
 import { t } from "@/lib/copy";
 import type { Task } from "@/lib/types";
-import { QuickCapture, type CaptureMode } from "./quick-capture";
-import { TaskEditor } from "./task-editor";
+import { CaptureMenu, type CaptureMode } from "./capture-menu";
+import { ImportDialog, type ImportPayload } from "./import-dialog";
+import { TaskComposer } from "./task-composer";
 import { Toasts, type Toast } from "./toasts";
+
+export interface TaskComposerOpts {
+  task?: Task;
+  ideaId?: string | null;
+  planId?: string | null;
+  dueDate?: string;
+}
 
 interface AppCtx {
   openCapture: (mode?: CaptureMode) => void;
-  openTaskEditor: (opts?: { task?: Task; ideaId?: string | null; dueDate?: string }) => void;
+  openImport: (payload?: ImportPayload) => void;
+  openTaskEditor: (opts?: TaskComposerOpts) => void;
   toast: (message: string, action?: Toast["action"]) => void;
 }
 
@@ -24,13 +33,23 @@ export function useApp() {
   return c;
 }
 
+/** Routes reachable without a profile. */
+const PUBLIC = ["/welcome", "/sign-in", "/register", "/forgot-password", "/reset-password", "/legal"];
+const isPublic = (p: string) => PUBLIC.some((x) => p === x || p.startsWith(`${x}/`));
+export const CAPTURE_ROUTES: Record<Exclude<CaptureMode, "link">, string> = {
+  write: "/capture/write",
+  record: "/capture/record",
+  photo: "/capture/media",
+};
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const profile = useProfile();
   const router = useRouter();
   const pathname = usePathname();
 
-  const [capture, setCapture] = useState<{ open: boolean; mode: CaptureMode | null; key: number }>({ open: false, mode: null, key: 0 });
-  const [taskEd, setTaskEd] = useState<{ open: boolean; task?: Task; ideaId?: string | null; dueDate?: string; key: number }>({ open: false, key: 0 });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [importState, setImportState] = useState<{ open: boolean; payload?: ImportPayload; key: number }>({ open: false, key: 0 });
+  const [taskEd, setTaskEd] = useState<{ open: boolean; key: number } & TaskComposerOpts>({ open: false, key: 0 });
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const toast = useCallback((message: string, action?: Toast["action"]) => {
@@ -39,52 +58,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== id)), action ? 10_000 : 4_000);
   }, []);
 
-  // Auth gate: a profile (local or cloud) is required before using the app (PRD §2.3).
+  // Auth + onboarding gate (PRD §2.3: a profile is required before using the app).
   useEffect(() => {
-    if (profile === null && pathname !== "/sign-in") router.replace("/sign-in");
-    if (profile && pathname === "/sign-in") router.replace("/");
+    if (profile === undefined) return;
+    if (profile === null) {
+      if (!isPublic(pathname)) router.replace("/welcome");
+      return;
+    }
+    if (!profile.onboarded) {
+      if (pathname !== "/onboarding" && !pathname.startsWith("/legal")) router.replace("/onboarding");
+      return;
+    }
+    if ((isPublic(pathname) && pathname !== "/reset-password" && !pathname.startsWith("/legal")) || pathname === "/onboarding") router.replace("/");
   }, [profile, pathname, router]);
 
   useEffect(() => {
     if (!profile) return;
     startSyncLoop();
     startReminderLoop();
-    return onReminderFired((_, title) =>
-      toast(`${t("reminder.due_now")}: ${title}`, { label: t("nav.reminders"), href: "/reminders" }),
-    );
+    return onReminderFired((_, title) => toast(`${t("reminder.due_now")}: ${title}`, { label: t("nav.reminders"), href: "/reminders" }));
   }, [profile, toast]);
+
+  const openImport = useCallback((payload?: ImportPayload) => setImportState((s) => ({ open: true, payload, key: s.key + 1 })), []);
 
   const value = useMemo<AppCtx>(
     () => ({
-      openCapture: (mode) => setCapture((c) => ({ open: true, mode: mode ?? null, key: c.key + 1 })),
+      openCapture: (mode) => {
+        setMenuOpen(false);
+        if (!mode) return setMenuOpen(true);
+        if (mode === "link") return openImport();
+        router.push(CAPTURE_ROUTES[mode]);
+      },
+      openImport,
       openTaskEditor: (opts) => setTaskEd((s) => ({ open: true, ...opts, key: s.key + 1 })),
       toast,
     }),
-    [toast],
+    [toast, router, openImport],
   );
+
+  const ready = profile && profile.onboarded;
 
   return (
     <Ctx.Provider value={value}>
       {children}
-      {profile && (
+      {ready && (
         <>
-          <QuickCapture
-            key={`c${capture.key}`}
-            open={capture.open}
-            initialMode={capture.mode}
-            onClose={() => setCapture((c) => ({ ...c, open: false }))}
-            onSaved={(ideaId, addTask) => {
-              setCapture((c) => ({ ...c, open: false }));
-              toast(t("toast.saved_idea"), { label: t("action.open"), href: `/ideas/${ideaId}` });
-              // Idea is already persisted; cancelling the task editor never rolls it back (§15.5).
-              if (addTask) setTaskEd((s) => ({ open: true, ideaId, task: undefined, key: s.key + 1 }));
-            }}
-          />
-          <TaskEditor
+          <CaptureMenu open={menuOpen} onClose={() => setMenuOpen(false)} onPick={(m) => value.openCapture(m)} />
+          <ImportDialog key={`i${importState.key}`} open={importState.open} initial={importState.payload} onClose={() => setImportState((s) => ({ ...s, open: false }))} />
+          <TaskComposer
             key={`t${taskEd.key}`}
             open={taskEd.open}
             task={taskEd.task}
             ideaId={taskEd.ideaId}
+            planId={taskEd.planId}
             dueDate={taskEd.dueDate}
             onClose={() => setTaskEd((s) => ({ ...s, open: false }))}
             onSaved={() => {
